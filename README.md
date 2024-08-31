@@ -25,6 +25,9 @@ Key features of the UnifiedApis class:
 - **JSON Mode**: Supports structured output in JSON format for easier parsing.
 - **Model Flexibility**: Allows specifying different models for each provider.
 
+The UnifiedApis class is provided by [Echo Hive](https://www.echohive.live/) ([GitHub](https://github.com/echohive42)).
+
+👉 **Support the Developer**: If you find the UnifiedApis class helpful, consider following [EchoHive on Youtube](https://www.youtube.com/@echohive) for more amazing projects or supporting their work on [Patreon](https://www.patreon.com/echohive42). Your support helps bring more innovative and helpful tools like UnifiedApis to life!
 
 ## Technologies Used
 

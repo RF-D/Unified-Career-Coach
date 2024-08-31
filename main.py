@@ -319,6 +319,11 @@ async def run_analysis(assistant, user_input, skills):
     }
 
 
+def update_session_state():
+    st.session_state.user_input = st.session_state.user_input_widget
+    st.session_state.skills = st.session_state.skills_widget
+
+
 def main():
     st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
     st.title("Unified Coach: AI-Powered Career Assistant 🚀")
@@ -345,6 +350,10 @@ def main():
         st.session_state.messages = []
     if "analysis_results" not in st.session_state:
         st.session_state.analysis_results = None
+    if "user_input" not in st.session_state:
+        st.session_state.user_input = ""
+    if "skills" not in st.session_state:
+        st.session_state.skills = ""
 
     # Sidebar for chat
     with st.sidebar:
@@ -387,24 +396,32 @@ def main():
             col3.metric("Get", "Personalized Insights", "🌟")
 
         st.markdown("### **How are you feeling today? What are your career goals?**")
-        user_input = st.text_area(
+        st.text_area(
             label="",
             height=100,
             placeholder="E.g., I'm feeling excited about new opportunities in tech. My goal is to transition into a data science role within the next year.",
+            key="user_input_widget",
+            value=st.session_state.user_input,
+            on_change=update_session_state,
         )
 
         st.markdown("### **List your current skills:**")
-        skills = st.text_area(
+        st.text_area(
             label="",
             height=100,
             placeholder="E.g., Python programming, data analysis, machine learning basics, SQL, communication skills",
+            key="skills_widget",
+            value=st.session_state.skills,
+            on_change=update_session_state,
         )
 
-        if st.button("Analyze"):
+        if st.button("Submit"):
             with st.spinner("Analyzing your input..."):
                 assistant = MindCareerAssistant()
                 analysis_results = asyncio.run(
-                    run_analysis(assistant, user_input, skills)
+                    run_analysis(
+                        assistant, st.session_state.user_input, st.session_state.skills
+                    )
                 )
                 st.session_state.analysis_results = analysis_results
                 st.session_state.analysis_complete = True
@@ -413,6 +430,21 @@ def main():
     else:
         # Display analysis results
         display_analysis_results(st.session_state.analysis_results)
+
+        # Create two columns for the "Start Over" button and info message
+        col1, col2 = st.columns([1, 3])
+
+        # Add a button to start over in the first column
+        if col1.button("Start Over"):
+            st.session_state.analysis_complete = False
+            st.session_state.analysis_results = None
+            st.session_state.messages = []
+            st.session_state.user_input = ""
+            st.session_state.skills = ""
+            st.rerun()
+
+        # Add an info message in the second column
+        col2.info("You can ask follow-up questions in the sidebar chat!")
 
 
 def display_analysis_results(results):
@@ -428,7 +460,7 @@ def display_analysis_results(results):
             text=f"Score: {mood_analysis['score']:.2f}",
         )
 
-    with st.expander("Detailed Mood Analysis"):
+    with st.expander("Detailed Mood Analysis", expanded=True):
         st.write(f"Analysis: {mood_analysis['analysis']}")
         st.write(f"Career Impact: {mood_analysis['career_impact']}")
 
@@ -453,7 +485,7 @@ def display_analysis_results(results):
         )
         st.plotly_chart(fig)
 
-    with st.expander("Alignment Details"):
+    with st.expander("Alignment Details", expanded=True):
         for alignment in top_5_alignments:
             st.write(f"- {alignment['job_title']}: {alignment['score']:.2f}")
             st.write(f"  Reason: {alignment['reason']}")
@@ -463,7 +495,7 @@ def display_analysis_results(results):
     career_path_analysis = results["career_path_analysis"]
 
     for key, value in career_path_analysis.items():
-        with st.expander(key.replace("_", " ").title()):
+        with st.expander(key.replace("_", " ").title(), expanded=True):
             st.write(value)
 
     # Skill Development Plan
@@ -472,16 +504,16 @@ def display_analysis_results(results):
 
     col1, col2 = st.columns(2)
     with col1:
-        with st.expander("Core Skills"):
+        with st.expander("Core Skills", expanded=True):
             st.write(skill_plan["core_skills"])
     with col2:
-        with st.expander("Skill Gaps"):
+        with st.expander("Skill Gaps", expanded=True):
             st.write(skill_plan["skill_gaps"])
 
-    with st.expander("Learning Resources"):
+    with st.expander("Learning Resources", expanded=True):
         st.write(skill_plan["learning_resources"])
 
-    with st.expander("Timeline"):
+    with st.expander("Timeline", expanded=True):
         st.write(skill_plan["timeline"])
 
     # Industry Forecast

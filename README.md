@@ -25,7 +25,6 @@ Key features of the UnifiedApis class:
 - **JSON Mode**: Supports structured output in JSON format for easier parsing.
 - **Model Flexibility**: Allows specifying different models for each provider.
 
-Usage example:
 
 ## Technologies Used
 

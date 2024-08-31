@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 from unified import UnifiedApis
 import asyncio
 import re
@@ -34,17 +32,46 @@ class MindCareerAssistant:
 
     async def update_job_categories(self, query):
         response = await openai_client.chat_async(
-            f"""Based on the following text, suggest relevant job categories and their estimated growth rates. 
+            f"""Based on the following text, suggest at least 5 relevant job categories and their estimated growth rates. 
+        If the text suggests fewer than 5 categories, add related or complementary job categories to reach a total of 5.
         Return the result as a JSON object where keys are job titles and values are growth rates (as decimals, e.g., 0.25 for 25% growth).
         Text: '{query}'"""
         )
 
-        if isinstance(response, dict):
+        if isinstance(response, dict) and len(response) >= 5:
             new_job_data = [
                 {"job_title": title, "growth_rate": rate}
                 for title, rate in response.items()
             ]
-            self.job_market_data = pd.DataFrame(new_job_data)
+        else:
+            print(
+                f"Unexpected response format or insufficient job categories: {response}"
+            )
+            # Fallback to ensure at least 5 job categories
+            default_categories = [
+                "Data Scientist",
+                "Software Engineer",
+                "Product Manager",
+                "UX Designer",
+                "Marketing Specialist",
+            ]
+            new_job_data = [
+                {"job_title": title, "growth_rate": 0.2} for title in default_categories
+            ]
+
+        self.job_market_data = pd.DataFrame(new_job_data)
+
+        # Ensure we have exactly 5 categories
+        if len(self.job_market_data) > 5:
+            self.job_market_data = self.job_market_data.nlargest(5, "growth_rate")
+        elif len(self.job_market_data) < 5:
+            additional_categories = [
+                {"job_title": f"Additional Category {i}", "growth_rate": 0.1}
+                for i in range(5 - len(self.job_market_data))
+            ]
+            self.job_market_data = pd.concat(
+                [self.job_market_data, pd.DataFrame(additional_categories)]
+            )
 
     async def analyze_mood(self, text):
         return await openai_client.chat_async(

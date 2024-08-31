@@ -250,7 +250,7 @@ async def run_analysis(assistant, user_input, skills):
     parsed_skill_plan = parse_claude_response(
         skill_plan, ["core_skills", "skill_gaps", "learning_resources", "timeline"]
     )
-    st.header(f"Skill Development Plan for {top_career}")
+    st.header("Skill Development Plan")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -321,37 +321,42 @@ async def run_analysis(assistant, user_input, skills):
 
 def main():
     st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
-    st.title("MindCareer: AI-Powered Mental Health and Career Assistant")
+    st.title("Unified Coach: AI-Powered Career Assistant 🚀")
+    # Set page config at the very beginning
+    # Add custom CSS
+    st.markdown(
+        """
+        <style>
+        .stTextArea [data-baseweb="textarea"] {
+            margin-top: -1rem;
+        }
+        .stTextArea {
+            margin-bottom: auto;
+        }
+        </style>
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Initialize session state variables
     if "analysis_complete" not in st.session_state:
         st.session_state.analysis_complete = False
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "analysis_results" not in st.session_state:
+        st.session_state.analysis_results = None
 
-    # Main content area
-    user_input = st.text_area(
-        "How are you feeling today? What are your career goals?", height=150
-    )
-    skills = st.text_area("List your current skills:")
-
-    if st.button("Analyze"):
-        with st.spinner("Analyzing your input..."):
-            assistant = MindCareerAssistant()
-            analysis_results = asyncio.run(run_analysis(assistant, user_input, skills))
-            st.session_state.update(analysis_results)
-            st.session_state.analysis_complete = True
-
-    # Sidebar chat (always visible, but only functional after analysis)
+    # Sidebar for chat
     with st.sidebar:
         st.subheader("Follow-up Chat")
 
         if not st.session_state.analysis_complete:
             st.info("Please complete the analysis to enable the chat feature.")
 
-        # Chat input at the top of the sidebar
+        # Chat input and send button
         prompt = st.text_input(
-            "Ask a follow-up question:", disabled=not st.session_state.analysis_complete
+            "Ask a follow-up question:",
+            disabled=not st.session_state.analysis_complete,
         )
         if st.button("Send", disabled=not st.session_state.analysis_complete):
             if prompt:
@@ -360,13 +365,7 @@ def main():
 
                 # Get AI response
                 with st.spinner("Processing your question..."):
-                    context = "\n".join(
-                        [
-                            f"{key}: {value}"
-                            for key, value in st.session_state.items()
-                            if key not in ["messages", "analysis_complete"]
-                        ]
-                    )
+                    context = str(st.session_state.analysis_results)
                     response = asyncio.run(follow_up_chat(prompt, context))
 
                 # Add AI response to chat history
@@ -379,95 +378,142 @@ def main():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-    # Display analysis results
-    if st.session_state.analysis_complete:
-        st.header("Mood Analysis")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Sentiment", st.session_state.mood_analysis["sentiment"])
-        with col2:
-            st.progress(
-                float(st.session_state.mood_analysis["score"] + 1) / 2,
-                text=f"Score: {st.session_state.mood_analysis['score']:.2f}",
-            )
+    # Main content area
+    if not st.session_state.analysis_complete:
+        with st.container():
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Explore", "Career Options", "🔍")
+            col2.metric("Analyze", "Your Skills", "📊")
+            col3.metric("Get", "Personalized Insights", "🌟")
 
-        with st.expander("Detailed Mood Analysis"):
-            st.write(f"Analysis: {st.session_state.mood_analysis['analysis']}")
-            st.write(
-                f"Career Impact: {st.session_state.mood_analysis['career_impact']}"
-            )
-
-        st.header("Job Market Alignment")
-        alignments = sorted(
-            st.session_state.job_insights["alignments"],
-            key=lambda x: x["score"],
-            reverse=True,
+        st.markdown("### **How are you feeling today? What are your career goals?**")
+        user_input = st.text_area(
+            label="",
+            height=100,
+            placeholder="E.g., I'm feeling excited about new opportunities in tech. My goal is to transition into a data science role within the next year.",
         )
-        top_5_alignments = alignments[:5]
 
-        if not top_5_alignments:
-            st.write("No job alignments found.")
-        else:
-            fig = px.bar(
-                x=[a["job_title"] for a in top_5_alignments],
-                y=[a["score"] for a in top_5_alignments],
-                labels={"x": "Job Title", "y": "Alignment Score"},
-                title=f"Top {len(top_5_alignments)} Job Category Alignments",
-            )
-            st.plotly_chart(fig)
-
-        with st.expander("Alignment Details"):
-            for alignment in top_5_alignments:
-                st.write(f"- {alignment['job_title']}: {alignment['score']:.2f}")
-                st.write(f"  Reason: {alignment['reason']}")
-
-        st.header("Career Path Analysis")
-        for key, value in st.session_state.career_path_analysis.items():
-            with st.expander(key.replace("_", " ").title()):
-                st.write(value)
-
-        st.header(
-            f"Skill Development Plan for {st.session_state.skill_plan['core_skills'].split(', ')[0]}"
+        st.markdown("### **List your current skills:**")
+        skills = st.text_area(
+            label="",
+            height=100,
+            placeholder="E.g., Python programming, data analysis, machine learning basics, SQL, communication skills",
         )
-        col1, col2 = st.columns(2)
-        with col1:
-            with st.expander("Core Skills"):
-                st.write(st.session_state.skill_plan["core_skills"])
-        with col2:
-            with st.expander("Skill Gaps"):
-                st.write(st.session_state.skill_plan["skill_gaps"])
 
-        with st.expander("Learning Resources"):
-            st.write(st.session_state.skill_plan["learning_resources"])
+        if st.button("Analyze"):
+            with st.spinner("Analyzing your input..."):
+                assistant = MindCareerAssistant()
+                analysis_results = asyncio.run(
+                    run_analysis(assistant, user_input, skills)
+                )
+                st.session_state.analysis_results = analysis_results
+                st.session_state.analysis_complete = True
+            st.rerun()
 
-        with st.expander("Timeline"):
-            st.write(st.session_state.skill_plan["timeline"])
+    else:
+        # Display analysis results
+        display_analysis_results(st.session_state.analysis_results)
 
-        st.header("Industry Forecast")
-        tabs = st.tabs(
-            [
-                "Relevant Industries",
-                "Technological Trends",
-                "Market Shifts",
-                "Potential Disruptions",
-                "Career Implications",
-            ]
+
+def display_analysis_results(results):
+    # Mood Analysis
+    st.header("Mood Analysis")
+    mood_analysis = results["mood_analysis"]
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Sentiment", mood_analysis["sentiment"])
+    with col2:
+        st.progress(
+            float(mood_analysis["score"] + 1) / 2,
+            text=f"Score: {mood_analysis['score']:.2f}",
         )
-        for tab, (key, value) in zip(tabs, st.session_state.industry_forecast.items()):
-            with tab:
-                st.write(value)
 
-        st.header("Job Market Overview")
-        fig = px.scatter(
-            pd.DataFrame(st.session_state.job_insights["alignments"]),
-            x="job_title",
-            y="score",
-            size="score",
-            hover_name="job_title",
-            title="Job Growth Rates",
-            labels={"score": "Growth Rate", "job_title": "Job Title"},
+    with st.expander("Detailed Mood Analysis"):
+        st.write(f"Analysis: {mood_analysis['analysis']}")
+        st.write(f"Career Impact: {mood_analysis['career_impact']}")
+
+    # Job Market Alignment
+    st.header("Job Market Alignment")
+    job_insights = results["job_insights"]
+
+    # Create a bar chart for job alignments
+    alignments = sorted(
+        job_insights["alignments"], key=lambda x: x["score"], reverse=True
+    )
+    top_5_alignments = alignments[:5]
+
+    if not top_5_alignments:
+        st.write("No job alignments found.")
+    else:
+        fig = px.bar(
+            x=[a["job_title"] for a in top_5_alignments],
+            y=[a["score"] for a in top_5_alignments],
+            labels={"x": "Job Title", "y": "Alignment Score"},
+            title=f"Top {len(top_5_alignments)} Job Category Alignments",
         )
         st.plotly_chart(fig)
+
+    with st.expander("Alignment Details"):
+        for alignment in top_5_alignments:
+            st.write(f"- {alignment['job_title']}: {alignment['score']:.2f}")
+            st.write(f"  Reason: {alignment['reason']}")
+
+    # Career Path Analysis
+    st.header("Career Path Analysis")
+    career_path_analysis = results["career_path_analysis"]
+
+    for key, value in career_path_analysis.items():
+        with st.expander(key.replace("_", " ").title()):
+            st.write(value)
+
+    # Skill Development Plan
+    st.header("Skill Development Plan")
+    skill_plan = results["skill_plan"]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        with st.expander("Core Skills"):
+            st.write(skill_plan["core_skills"])
+    with col2:
+        with st.expander("Skill Gaps"):
+            st.write(skill_plan["skill_gaps"])
+
+    with st.expander("Learning Resources"):
+        st.write(skill_plan["learning_resources"])
+
+    with st.expander("Timeline"):
+        st.write(skill_plan["timeline"])
+
+    # Industry Forecast
+    st.header("Industry Forecast")
+    industry_forecast = results["industry_forecast"]
+
+    tabs = st.tabs(
+        [
+            "Relevant Industries",
+            "Technological Trends",
+            "Market Shifts",
+            "Potential Disruptions",
+            "Career Implications",
+        ]
+    )
+    for tab, (key, value) in zip(tabs, industry_forecast.items()):
+        with tab:
+            st.write(value)
+
+    # Job Market Data Visualization
+    st.header("Job Market Overview")
+    job_market_data = pd.DataFrame(results["job_insights"]["alignments"])
+    fig = px.scatter(
+        job_market_data,
+        x="job_title",
+        y="score",
+        size="score",
+        hover_name="job_title",
+        title="Job Alignment Scores",
+        labels={"score": "Alignment Score", "job_title": "Job Title"},
+    )
+    st.plotly_chart(fig)
 
 
 if __name__ == "__main__":

@@ -80,7 +80,7 @@ Key features of the UnifiedApis class:
 
 ## Usage
 
-1. Enter your current feelings and career goals in the first text area.
+1. Enter your current feelings or state of mind, and career goals in the first text area.
 2. List your current skills in the second text area.
 3. Click "Submit" to generate a comprehensive career analysis.
 4. Explore the various sections of the analysis, including visualizations.

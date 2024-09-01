@@ -327,7 +327,6 @@ def update_session_state():
 def main():
     st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
     st.title("Unified Coach: AI-Powered Career Assistant 🚀")
-    # Set page config at the very beginning
     # Add custom CSS
     st.markdown(
         """
@@ -338,6 +337,7 @@ def main():
         .stTextArea {
             margin-bottom: auto;
         }
+        
         </style>
     """,
         unsafe_allow_html=True,
@@ -357,44 +357,50 @@ def main():
     if "assistant" not in st.session_state:
         st.session_state.assistant = MindCareerAssistant()
 
-    # Sidebar for chat
+    # Main content area
+    if not st.session_state.analysis_complete:
+        display_input_form()
+    else:
+        results_container = st.container()
+        with results_container:
+            st.markdown('<div class="fixed-height">', unsafe_allow_html=True)
+            display_analysis_results(st.session_state.analysis_results)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 3])
+        if col1.button("Start Over"):
+            reset_session_state()
+            st.rerun()
+        col2.info("You can ask follow-up questions in the chat!")
+
+    # Sidebar chat
     with st.sidebar:
         st.subheader("Follow-up Chat")
 
         if not st.session_state.analysis_complete:
             st.info("Please complete the analysis to enable the chat feature.")
+        else:
+            # Chat input and send button (moved to the top)
+            prompt = st.text_input("Ask a follow-up question:", key="chat_input")
+            if st.button("Send"):
+                if prompt:
+                    st.session_state.messages.append(
+                        {"role": "user", "content": prompt}
+                    )
+                    with st.spinner("Processing your question..."):
+                        context = str(st.session_state.analysis_results)
+                        response = asyncio.run(follow_up_chat(prompt, context))
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": response}
+                    )
+                    st.rerun()
 
-        # Chat input and send button
-        prompt = st.text_input(
-            "Ask a follow-up question:",
-            disabled=not st.session_state.analysis_complete,
-        )
-        if st.button("Send", disabled=not st.session_state.analysis_complete):
-            if prompt:
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                with st.spinner("Processing your question..."):
-                    context = str(st.session_state.analysis_results)
-                    response = asyncio.run(follow_up_chat(prompt, context))
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": response}
-                )
-                st.rerun()
-
-        # Display chat history
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-    # Main content area
-    if not st.session_state.analysis_complete:
-        display_input_form()
-    else:
-        display_analysis_results(st.session_state.analysis_results)
-        col1, col2 = st.columns([1, 3])
-        if col1.button("Start Over"):
-            reset_session_state()
-            st.rerun()
-        col2.info("You can ask follow-up questions in the sidebar chat!")
+            # Chat display (moved to the bottom)
+            chat_container = st.container()
+            with chat_container:
+                for message in st.session_state.messages:
+                    with st.chat_message(message["role"]):
+                        st.markdown(message["content"])
 
 
 def display_input_form():

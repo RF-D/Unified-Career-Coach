@@ -327,7 +327,6 @@ def update_session_state():
 def main():
     st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
     st.title("Unified Coach: AI-Powered Career Assistant 🚀")
-    # Set page config at the very beginning
     # Add custom CSS
     st.markdown(
         """
@@ -338,6 +337,7 @@ def main():
         .stTextArea {
             margin-bottom: auto;
         }
+        
         </style>
     """,
         unsafe_allow_html=True,
@@ -354,97 +354,104 @@ def main():
         st.session_state.user_input = ""
     if "skills" not in st.session_state:
         st.session_state.skills = ""
+    if "assistant" not in st.session_state:
+        st.session_state.assistant = MindCareerAssistant()
 
-    # Sidebar for chat
+    # Main content area
+    if not st.session_state.analysis_complete:
+        display_input_form()
+    else:
+        results_container = st.container()
+        with results_container:
+            st.markdown('<div class="fixed-height">', unsafe_allow_html=True)
+            display_analysis_results(st.session_state.analysis_results)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 3])
+        if col1.button("Start Over"):
+            reset_session_state()
+            st.rerun()
+        col2.info("You can ask follow-up questions in the chat!")
+
+    # Sidebar chat
     with st.sidebar:
         st.subheader("Follow-up Chat")
 
         if not st.session_state.analysis_complete:
             st.info("Please complete the analysis to enable the chat feature.")
+        else:
+            # Chat input and send button (moved to the top)
+            prompt = st.text_input("Ask a follow-up question:", key="chat_input")
+            if st.button("Send"):
+                if prompt:
+                    st.session_state.messages.append(
+                        {"role": "user", "content": prompt}
+                    )
+                    with st.spinner("Processing your question..."):
+                        context = str(st.session_state.analysis_results)
+                        response = asyncio.run(follow_up_chat(prompt, context))
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": response}
+                    )
+                    st.rerun()
 
-        # Chat input and send button
-        prompt = st.text_input(
-            "Ask a follow-up question:",
-            disabled=not st.session_state.analysis_complete,
-        )
-        if st.button("Send", disabled=not st.session_state.analysis_complete):
-            if prompt:
-                # Add user message to chat history
-                st.session_state.messages.append({"role": "user", "content": prompt})
+            # Chat display (moved to the bottom)
+            chat_container = st.container()
+            with chat_container:
+                for message in st.session_state.messages:
+                    with st.chat_message(message["role"]):
+                        st.markdown(message["content"])
 
-                # Get AI response
-                with st.spinner("Processing your question..."):
-                    context = str(st.session_state.analysis_results)
-                    response = asyncio.run(follow_up_chat(prompt, context))
 
-                # Add AI response to chat history
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": response}
-                )
+def display_input_form():
+    with st.container():
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Explore", "Career Options", "🔍")
+        col2.metric("Analyze", "Your Skills", "📊")
+        col3.metric("Get", "Personalized Insights", "🌟")
 
-        # Display chat history
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-    # Main content area
-    if not st.session_state.analysis_complete:
-        with st.container():
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Explore", "Career Options", "🔍")
-            col2.metric("Analyze", "Your Skills", "📊")
-            col3.metric("Get", "Personalized Insights", "🌟")
-
+    with st.form(key="input_form"):
         st.markdown("### **How are you feeling today? What are your career goals?**")
-        st.text_area(
+        user_input = st.text_area(
             label="",
             height=100,
             placeholder="E.g., I'm feeling excited about new opportunities in tech. My goal is to transition into a data science role within the next year.",
             key="user_input_widget",
-            value=st.session_state.user_input,
-            on_change=update_session_state,
         )
 
         st.markdown("### **List your current skills:**")
-        st.text_area(
+        skills = st.text_area(
             label="",
             height=100,
             placeholder="E.g., Python programming, data analysis, machine learning basics, SQL, communication skills",
             key="skills_widget",
-            value=st.session_state.skills,
-            on_change=update_session_state,
         )
 
-        if st.button("Submit"):
-            with st.spinner("Analyzing your input..."):
-                assistant = MindCareerAssistant()
-                analysis_results = asyncio.run(
-                    run_analysis(
-                        assistant, st.session_state.user_input, st.session_state.skills
-                    )
+        submit_button = st.form_submit_button(label="Submit")
+
+    if submit_button:
+        st.session_state.user_input = user_input
+        st.session_state.skills = skills
+        with st.spinner("Analyzing your input..."):
+            analysis_results = asyncio.run(
+                run_analysis(
+                    st.session_state.assistant,
+                    st.session_state.user_input,
+                    st.session_state.skills,
                 )
-                st.session_state.analysis_results = analysis_results
-                st.session_state.analysis_complete = True
-            st.rerun()
+            )
+            st.session_state.analysis_results = analysis_results
+            st.session_state.analysis_complete = True
+        st.rerun()
 
-    else:
-        # Display analysis results
-        display_analysis_results(st.session_state.analysis_results)
 
-        # Create two columns for the "Start Over" button and info message
-        col1, col2 = st.columns([1, 3])
-
-        # Add a button to start over in the first column
-        if col1.button("Start Over"):
-            st.session_state.analysis_complete = False
-            st.session_state.analysis_results = None
-            st.session_state.messages = []
-            st.session_state.user_input = ""
-            st.session_state.skills = ""
-            st.rerun()
-
-        # Add an info message in the second column
-        col2.info("You can ask follow-up questions in the sidebar chat!")
+def reset_session_state():
+    st.session_state.analysis_complete = False
+    st.session_state.analysis_results = None
+    st.session_state.messages = []
+    st.session_state.user_input = ""
+    st.session_state.skills = ""
+    st.session_state.assistant = MindCareerAssistant()
 
 
 def display_analysis_results(results):

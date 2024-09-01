@@ -371,7 +371,7 @@ def main():
         if col1.button("Start Over"):
             reset_session_state()
             st.rerun()
-        col2.info("You can ask follow-up questions in the chat!")
+        col2.info("You can ask follow-up questions in the sidebar chat!")
 
     # Sidebar chat
     with st.sidebar:
